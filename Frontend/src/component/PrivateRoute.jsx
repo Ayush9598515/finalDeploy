@@ -5,11 +5,12 @@ import axios from "axios";
 const PrivateRoute = ({ children }) => {
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:2000";
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await axios.get("http://localhost:2000/api/me", {
+        const res = await axios.get(`${AUTH_URL}/api/me`, {
           withCredentials: true,
         });
         if (res.data.user) {
