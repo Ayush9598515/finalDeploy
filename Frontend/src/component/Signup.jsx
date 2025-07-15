@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
+const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:2000";
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -21,28 +22,31 @@ const SignUp = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:2000";
 
-    try {
-      const payload = {
-        name: formData.name,
-        email: formData.email,
-        phonenumber: formData.phone,           // ✅ matches backend
-        dateofbirth: formData.dob,             // ✅ matches backend
-        password: formData.password,
-        gender: formData.gender,
-        subscription: formData.subscriptionPlan // ✅ matches backend
-      };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
 
-      const res = await axios.post("http://localhost:2000/api/register", payload);
-      alert("Account created successfully 🎉");
-      navigate("/login");
-    } catch (err) {
-      setError(err.response?.data?.error || "Registration failed");
-    }
-  };
+  try {
+    const payload = {
+      name: formData.name,
+      email: formData.email,
+      phonenumber: formData.phone,
+      dateofbirth: formData.dob,
+      password: formData.password,
+      gender: formData.gender,
+      subscription: formData.subscriptionPlan,
+    };
+
+    const res = await axios.post(`${AUTH_URL}/api/register`, payload);
+    alert("Account created successfully 🎉");
+    navigate("/login");
+  } catch (err) {
+    setError(err.response?.data?.error || "Registration failed");
+  }
+};
+
 
   return (
     <section className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
