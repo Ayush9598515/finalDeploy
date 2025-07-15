@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
+const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:2000";
 
 function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -17,10 +18,9 @@ function Navbar() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await axios.get("http://localhost:2000/api/me", {
-          withCredentials: true,
-        });
-
+        const res = await axios.get(`${AUTH_URL}/api/me`, {
+     withCredentials: true,
+    });
         const nameFromRes = res.data.user.name?.split("@")[0] || res.data.user.email.split("@")[0];
         setIsLoggedIn(true);
         setUserName(nameFromRes);
@@ -49,8 +49,8 @@ function Navbar() {
   // 🚪 Logout handler
   const handleLogout = async () => {
     try {
-      await axios.post("http://localhost:2000/api/logout", {}, {
-        withCredentials: true,
+      await axios.post(`${AUTH_URL}/api/logout`, {}, {
+     withCredentials: true,
       });
 
       localStorage.removeItem("username");
