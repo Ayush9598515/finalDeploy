@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
-
+const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:2000";
 const SignIn = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -17,11 +17,12 @@ const SignIn = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
+   
     try {
       const res = await axios.post(
-        "http://localhost:2000/api/login",
+       `${AUTH_URL}/api/login`,
         formData,
+        
         {
           withCredentials: true, // ✅ Important to receive cookie
         }
@@ -79,7 +80,9 @@ const SignIn = () => {
                 <label htmlFor="password" className="block text-sm font-medium">
                   Password
                 </label>
-                
+                <a href="#" className="text-sm text-indigo-600 hover:text-indigo-500">
+                  Forgot password?
+                </a>
               </div>
               <input
                 type="password"
