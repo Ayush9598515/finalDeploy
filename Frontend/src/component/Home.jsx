@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
+const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:2000";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ const Home = () => {
   useEffect(() => {
     const fetchUsername = async () => {
       try {
-        const res = await axios.get("http://localhost:2000/api/me", {
+        const res = await axios.get(`${AUTH_URL}/api/me`, {
           withCredentials: true,
         });
 
