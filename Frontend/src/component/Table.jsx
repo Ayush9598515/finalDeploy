@@ -3,6 +3,7 @@ import axios from "axios";
 import HeatMap from "react-calendar-heatmap";
 import "react-calendar-heatmap/dist/styles.css";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:2000";
 
 // 📦 Reusable StatCard
 const StatCard = ({ title, value, total }) => (
@@ -34,7 +35,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get("http://localhost:2000/api/dashboard", {
+        const res = await axios.get(`${AUTH_URL}/api/dashboard`, {
           withCredentials: true,
         });
 
