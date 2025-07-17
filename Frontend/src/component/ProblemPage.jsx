@@ -1,109 +1,130 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import Editor from 'react-simple-code-editor';
-import Prism from 'prismjs';
-import 'prismjs/themes/prism.css';
-import 'prismjs/components/prism-python';
-import 'prismjs/components/prism-cpp';
-import 'prismjs/components/prism-java';
-import 'prismjs/components/prism-c';
+// 🧠 Updated ProblemPage.jsx to trigger Vercel redeploy (added dummy comment)
 
-const ProblemPage = ({ problemId }) => {
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { useParams } from "react-router-dom";
+import Editor from "react-simple-code-editor";
+import Prism from "prismjs";
+import "prismjs/themes/prism.css";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-java";
+import "prismjs/components/prism-c";
+import "prismjs/components/prism-cpp";
+import ReactMarkdown from "react-markdown";
+
+const languageToPrismMap = {
+  cpp: "cpp",
+  c: "c",
+  java: "java",
+  python: "python",
+};
+
+const starterCodeMap = {
+  cpp: "#include <iostream>\nusing namespace std;\n\nint main() {\n    // your code here\n    return 0;\n}",
+  c: "#include <stdio.h>\n\nint main() {\n    // your code here\n    return 0;\n}",
+  java: "public class Main {\n    public static void main(String[] args) {\n        // your code here\n    }\n}",
+  python: "# your code here",
+};
+
+const ProblemPage = () => {
+  const { id } = useParams();
   const [problem, setProblem] = useState(null);
-  const [code, setCode] = useState('');
-  const [language, setLanguage] = useState('cpp');
-  const [input, setInput] = useState('');
-  const [output, setOutput] = useState('');
-  const [verdict, setVerdict] = useState('');
-  const [aiReview, setAiReview] = useState('');
+  const [code, setCode] = useState(starterCodeMap.cpp);
+  const [language, setLanguage] = useState("cpp");
+  const [input, setInput] = useState("");
+  const [output, setOutput] = useState("");
+  const [verdict, setVerdict] = useState("");
+  const [expectedOutput, setExpectedOutput] = useState("");
+  const [yourOutput, setYourOutput] = useState("");
+  const [aiFeedback, setAIFeedback] = useState("");
   const [loading, setLoading] = useState(false);
-  const [failedTestCases, setFailedTestCases] = useState([]);
 
-  const BASE_URL = import.meta.env.VITE_BACKEND_URL;
+  const COMPILER_URL = import.meta.env.VITE_COMPILER_URL;
   const SUBMIT_URL = import.meta.env.VITE_SUBMIT_URL;
-  const RUN_URL = import.meta.env.VITE_COMPILER_URL;
 
   useEffect(() => {
     const fetchProblem = async () => {
       try {
-        const response = await axios.get(`${BASE_URL}/api/problems/${problemId}`);
-        setProblem(response.data);
-        setCode(response.data.starterCode[language] || '');
-      } catch (error) {
-        console.error('Error fetching problem:', error);
+        const res = await axios.get(`/api/problems/${id}`);
+        setProblem(res.data);
+        setCode(starterCodeMap[language]);
+      } catch (err) {
+        console.error("Error fetching problem:", err);
       }
     };
     fetchProblem();
-  }, [problemId, language]);
+  }, [id]);
+
+  const handleLanguageChange = (e) => {
+    const lang = e.target.value;
+    setLanguage(lang);
+    setCode(starterCodeMap[lang]);
+  };
 
   const handleRun = async () => {
     setLoading(true);
+    setVerdict("");
+    setOutput("");
     try {
-      const res = await axios.post(`${RUN_URL}`, { code, language, input });
-      setOutput(res.data.output || res.data.error || 'No output');
+      const res = await axios.post(`${COMPILER_URL}`, {
+        code,
+        language,
+        input,
+        timeout: 2,
+      });
+      setOutput(res.data.output);
     } catch (err) {
-      setOutput('Error running code');
+      setOutput("Error: " + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSubmit = async () => {
     setLoading(true);
-    setAiReview('');
-    setVerdict('');
-    setFailedTestCases([]);
+    setVerdict("");
+    setExpectedOutput("");
+    setYourOutput("");
+    setAIFeedback("");
+
     try {
       const res = await axios.post(`${SUBMIT_URL}`, {
+        problemId: id,
         code,
         language,
-        problemId
-      });
-      setVerdict(res.data.verdict);
-      if (res.data.verdict === 'Wrong Answer') {
-        setFailedTestCases(res.data.failedTestCases || []);
+      }, { withCredentials: true });
+
+      const { verdict, failedTest, aiReview } = res.data;
+
+      setVerdict(verdict);
+      if (verdict === "Wrong Answer" && failedTest) {
+        setExpectedOutput(failedTest.expectedOutput);
+        setYourOutput(failedTest.actualOutput);
       }
-      setAiReview(res.data.aiReview || '');
+      if (verdict === "Accepted" && aiReview) {
+        setAIFeedback(aiReview);
+      }
+
     } catch (err) {
-      setVerdict('Error submitting code');
+      setVerdict("Error submitting: " + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const highlight = (code) => Prism.highlight(code, Prism.languages[language], language);
-
-  if (!problem) return <div className="text-center mt-10 text-lg">Loading problem...</div>;
+  if (!problem) return <div className="text-center mt-10 text-xl">Loading problem...</div>;
 
   return (
-    <div className="p-4 max-w-6xl mx-auto text-gray-900 dark:text-gray-100">
-      <h1 className="text-2xl font-bold mb-4">{problem.title}</h1>
+    <div className="p-4 max-w-7xl mx-auto text-gray-900 dark:text-gray-100">
+      <h1 className="text-3xl font-bold mb-4">{problem.title}</h1>
+      <p className="mb-4 text-gray-700 dark:text-gray-300">{problem.description}</p>
 
       <div className="mb-4">
-        <h2 className="text-lg font-semibold">Description:</h2>
-        <p className="whitespace-pre-line">{problem.description}</p>
-      </div>
-
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold">Constraints:</h2>
-        <p className="whitespace-pre-line">{problem.constraints}</p>
-      </div>
-
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold">Examples:</h2>
-        {problem.examples.map((ex, i) => (
-          <div key={i} className="bg-gray-200 dark:bg-gray-800 p-2 rounded mb-2">
-            <p><strong>Input:</strong> {ex.input}</p>
-            <p><strong>Output:</strong> {ex.output}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Language Selector */}
-      <div className="mb-4">
-        <label className="font-semibold mr-2">Language:</label>
+        <label className="mr-2 font-semibold">Language:</label>
         <select
-          className="bg-gray-100 dark:bg-gray-700 text-black dark:text-white p-1 rounded"
+          className="p-2 rounded bg-gray-100 dark:bg-gray-800"
           value={language}
-          onChange={(e) => setLanguage(e.target.value)}
+          onChange={handleLanguageChange}
         >
           <option value="cpp">C++</option>
           <option value="c">C</option>
@@ -112,80 +133,76 @@ const ProblemPage = ({ problemId }) => {
         </select>
       </div>
 
-      {/* Code Editor */}
-      <div className="mb-4">
+      <div className="mb-4 border dark:border-gray-600 rounded">
         <Editor
           value={code}
           onValueChange={setCode}
-          highlight={highlight}
+          highlight={code => Prism.highlight(code, Prism.languages[languageToPrismMap[language]], language)}
           padding={10}
-          className="border rounded bg-white dark:bg-gray-900 text-sm font-mono min-h-[300px] text-black dark:text-white"
+          className="min-h-[300px] font-mono bg-white dark:bg-gray-900 text-sm rounded"
         />
       </div>
 
-      {/* Input Box */}
       <div className="mb-4">
-        <h2 className="font-semibold">Custom Input:</h2>
+        <label className="font-semibold">Custom Input:</label>
         <textarea
           rows="4"
+          className="w-full p-2 mt-1 border rounded bg-gray-100 dark:bg-gray-800"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          className="w-full p-2 rounded border bg-white dark:bg-gray-800 text-black dark:text-white"
         />
       </div>
 
-      {/* Buttons */}
-      <div className="flex gap-4 mb-4">
+      <div className="space-x-4 mb-4">
         <button
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
           onClick={handleRun}
           disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
         >
           Run Code
         </button>
         <button
+          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
           onClick={handleSubmit}
           disabled={loading}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
         >
-          Submit
+          Submit Code
         </button>
       </div>
 
-      {/* Output */}
       {output && (
         <div className="mb-4">
           <h2 className="font-semibold">Output:</h2>
-          <pre className="bg-gray-100 dark:bg-gray-800 p-2 rounded overflow-x-auto">{output}</pre>
+          <pre className="p-2 bg-gray-100 dark:bg-gray-800 rounded whitespace-pre-wrap">{output}</pre>
         </div>
       )}
 
-      {/* Verdict */}
       {verdict && (
-        <div className={`mb-4 font-bold ${verdict === 'Accepted' ? 'text-green-600' : 'text-red-500'}`}>
+        <div className={`mb-4 p-3 rounded font-bold ${
+          verdict === "Accepted"
+            ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200"
+            : verdict === "Wrong Answer"
+            ? "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-200"
+            : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-200"
+        }`}>
           Verdict: {verdict}
         </div>
       )}
 
-      {/* Failed Test Cases */}
-      {verdict === 'Wrong Answer' && failedTestCases.length > 0 && (
-        <div className="mb-4 bg-red-100 dark:bg-red-900 p-4 rounded-lg">
-          <h3 className="text-lg font-bold mb-2 text-red-700 dark:text-red-200">❌ Failed Test Case(s):</h3>
-          {failedTestCases.map((test, idx) => (
-            <div key={idx} className="mb-2 border-b border-gray-300 dark:border-gray-700 pb-2">
-              <p><strong>Input:</strong> <code>{test.input}</code></p>
-              <p><strong>Expected:</strong> <code>{test.expectedOutput}</code></p>
-              <p><strong>Your Output:</strong> <code>{test.userOutput}</code></p>
-            </div>
-          ))}
+      {verdict === "Wrong Answer" && (
+        <div className="mb-4">
+          <h3 className="font-semibold text-red-600 dark:text-red-300">Expected Output:</h3>
+          <pre className="p-2 bg-gray-100 dark:bg-gray-800 rounded whitespace-pre-wrap">{expectedOutput}</pre>
+
+          <h3 className="font-semibold text-red-600 dark:text-red-300">Your Output:</h3>
+          <pre className="p-2 bg-gray-100 dark:bg-gray-800 rounded whitespace-pre-wrap">{yourOutput}</pre>
         </div>
       )}
 
-      {/* AI Review */}
-      {aiReview && (
-        <div className="mb-4 bg-yellow-100 dark:bg-yellow-900 p-4 rounded-lg">
-          <h3 className="text-lg font-bold mb-2 text-yellow-700 dark:text-yellow-200">🤖 AI Code Review:</h3>
-          <p>{aiReview}</p>
+      {aiFeedback && (
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900 rounded">
+          <h3 className="text-lg font-bold mb-2 text-blue-800 dark:text-blue-200">AI Code Review</h3>
+          <ReactMarkdown className="prose dark:prose-invert">{aiFeedback}</ReactMarkdown>
         </div>
       )}
     </div>
@@ -193,3 +210,4 @@ const ProblemPage = ({ problemId }) => {
 };
 
 export default ProblemPage;
+
