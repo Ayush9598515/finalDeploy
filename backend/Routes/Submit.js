@@ -4,7 +4,6 @@ const router = express.Router();
 
 const Submission = require("../models/Submission");
 const Problem = require("../models/Problem");
-const { aiCodeReview } = require("./aiCodeReview");
 const { authenticateUser } = require("../middleware/verification");
 
 router.post("/submit", authenticateUser, async (req, res) => {
@@ -33,7 +32,7 @@ router.post("/submit", authenticateUser, async (req, res) => {
         code,
         language,
         input,
-        timeout: 2000,
+        timeout: 2000, // 2-second timeout
       });
 
       const actualOutput = (data.output || "").trim();
@@ -62,12 +61,7 @@ router.post("/submit", authenticateUser, async (req, res) => {
       difficulty: problem.difficulty,
     });
 
-    if (verdict === "Accepted") {
-      const review = await aiCodeReview(code);
-      return res.json({ verdict, review });
-    }
-
-    return res.json({ verdict, failedCase });
+    return res.json(allPassed ? { verdict } : { verdict, failedCase });
 
   } catch (err) {
     console.error("❌ Submission Error:", err.message);
@@ -76,7 +70,3 @@ router.post("/submit", authenticateUser, async (req, res) => {
 });
 
 module.exports = router;
-
-
-
-
