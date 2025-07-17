@@ -12,7 +12,7 @@ const app = express();
 // 🛡️ Middleware
 app.use(cors({
 origin: [
-  "https://namescheap.xyz",
+ 
   "https://www.namescheap.xyz"
 ],
   credentials: true,
