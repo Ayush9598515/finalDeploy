@@ -46,7 +46,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// ✅ LOGIN Route (with HTTP-only cookie)
+// ✅ LOGIN Route (HTTP-only, cross-origin cookie setup)
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -71,15 +71,14 @@ router.post("/login", async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    // ✅ Send token as HTTP-only cookie
+    // ✅ Set cross-site secure cookie
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false,        // ✅ true in production with HTTPS
-      sameSite: "Lax",
+      secure: true,           // ✅ must be true for HTTPS
+      sameSite: "None",       // ✅ required for cross-origin cookie
       maxAge: 60 * 60 * 1000, // 1 hour
     });
 
-    // ✅ Send username as response
     res.status(200).json({
       message: "Login successful",
       username: user.name,
@@ -90,7 +89,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ✅ OPTIONAL: Auth check route (used by frontend to verify session)
+// ✅ AUTH CHECK
 router.get("/me", (req, res) => {
   const token = req.cookies.token;
 
@@ -105,15 +104,15 @@ router.get("/me", (req, res) => {
     return res.status(401).json({ error: "Invalid token" });
   }
 });
-// ✅ LOGOUT Route
+
+// ✅ LOGOUT
 router.post("/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
-    sameSite: "Lax",
-    secure: false, // 🔒 Set true in production with HTTPS
+    secure: true,       // ✅ match the login config
+    sameSite: "None",
   });
   return res.status(200).json({ message: "Logged out successfully" });
 });
-
 
 module.exports = router;
