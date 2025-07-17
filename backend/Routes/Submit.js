@@ -21,6 +21,7 @@ router.post("/submit", authenticateUser, async (req, res) => {
 
     const testCases = problem.testCases || [];
     const compilerURL = process.env.VITE_COMPILER_URL || "http://localhost:8000/run";
+    const aiReviewURL = process.env.VITE_AI_REVIEW_URL || "http://localhost:2000/api/ai-review";
 
     let allPassed = true;
     let failedCase = null;
@@ -32,7 +33,7 @@ router.post("/submit", authenticateUser, async (req, res) => {
         code,
         language,
         input,
-        timeout: 2000, // 2-second timeout
+        timeout: 2000,
       });
 
       const actualOutput = (data.output || "").trim();
@@ -52,7 +53,7 @@ router.post("/submit", authenticateUser, async (req, res) => {
 
     const verdict = allPassed ? "Accepted" : "Wrong Answer";
 
-    await Submission.create({
+    const submission = await Submission.create({
       user: req.user._id,
       problem: problemId,
       code,
@@ -61,7 +62,25 @@ router.post("/submit", authenticateUser, async (req, res) => {
       difficulty: problem.difficulty,
     });
 
-    return res.json(allPassed ? { verdict } : { verdict, failedCase });
+    // ✅ AI Review request
+    let aiFeedback = null;
+    try {
+      const aiRes = await axios.post(aiReviewURL, {
+        code,
+        language,
+        problemTitle: problem.title,
+        verdict,
+      });
+      aiFeedback = aiRes.data?.feedback || null;
+    } catch (aiErr) {
+      console.warn("⚠️ AI Review failed:", aiErr.message);
+    }
+
+    return res.json({
+      verdict,
+      failedCase: allPassed ? null : failedCase,
+      aiFeedback,
+    });
 
   } catch (err) {
     console.error("❌ Submission Error:", err.message);
