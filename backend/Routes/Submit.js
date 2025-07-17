@@ -1,113 +1,64 @@
 const express = require("express");
-const axios = require("axios");
-const isAuth = require("../middleware/verification");
-const Problem = require("../models/Problem");
-const Submission = require("../models/Submission");
-
 const router = express.Router();
+const axios = require("axios");
+const { aiCodeReview } = require("./aiCodeReview"); // ✅ Local Gemini logic
+const Submission = require("../models/Submission");
+const Problem = require("../models/Problem");
+const { authenticateUser } = require("../middleware/authenticate");
 
-const COMPILER_URL = process.env.COMPILER_URL || "http://localhost:8000/run";
-const AI_REVIEW_URL = process.env.AI_REVIEW_URL || "http://localhost:8000/ai-review";
+router.post("/", authenticateUser, async (req, res) => {
+  const { problemId, code, language } = req.body;
 
-// Helper function to normalize output for better comparison
-const normalize = str => str.replace(/\s+/g, ' ').replace(/[\[\],]/g, '').trim();
-
-router.post("/", isAuth, async (req, res) => {
   try {
-    const { problemId, language, code } = req.body;
-
     const problem = await Problem.findById(problemId);
     if (!problem) {
-      return res.status(404).json({ message: "Problem not found" });
+      return res.status(404).json({ error: "Problem not found." });
     }
 
-    let verdict = "Accepted";
-    const testResults = [];
-    let failedTest = null;
+    const testCases = problem.testCases;
+    const timeout = 2000; // ✅ 2 second timeout
 
-    for (const testCase of problem.testCases) {
-      const { input, expectedOutput } = testCase;
-
-      try {
-        const response = await axios.post(COMPILER_URL, {
-          code,
-          language,
-          input,
-        }, {
-          timeout: 2000 // ✅ 2 seconds timeout
-        });
-
-        const output = response.data.output;
-        const normalizedOutput = normalize(output);
-        const normalizedExpected = normalize(expectedOutput);
-
-        const passed = normalizedOutput === normalizedExpected;
-
-        testResults.push({
-          input,
-          expectedOutput,
-          output,
-          passed,
-        });
-
-        if (!passed && verdict === "Accepted") {
-          verdict = "Wrong Answer";
-          failedTest = {
-            input,
-            expectedOutput,
-            output,
-          };
-        }
-
-      } catch (err) {
-        console.error("🔥 Compiler Error:", err?.response?.data || err?.message || err.toString());
-        verdict = "Error";
-        return res.status(500).json({
-          message: "Error running code",
-          error: err?.response?.data || err?.message || err.toString(),
-        });
+    const response = await axios.post(
+      process.env.VITE_COMPILER_URL || "http://localhost:8000/run",
+      {
+        code,
+        language,
+        testCases,
+        timeout,
       }
-    }
+    );
 
-    let aiFeedback = "";
-    if (verdict === "Accepted") {
-      try {
-        const aiResponse = await axios.post(AI_REVIEW_URL, {
-          code,
-          language,
-          problemDescription: problem.description,
-        });
-        aiFeedback = aiResponse.data.feedback || "";
-      } catch (err) {
-        console.error("🔥 AI Review Error:", err?.response?.data || err?.message || err.toString());
-        aiFeedback = "AI review unavailable due to error.";
-      }
-    }
+    const { verdict, error, output, expectedOutput } = response.data;
 
-    const submission = await Submission.create({
-      user: req.user.id,
+    // ✅ Save submission in DB
+    await Submission.create({
+      user: req.user._id,
       problem: problemId,
       code,
       language,
       verdict,
       difficulty: problem.difficulty,
-      testResults,     // ✅ Saved for history/debugging (optional)
-      failedTest,      // ✅ Shows failing case on frontend
     });
 
-    return res.status(200).json({
+    // ✅ Only run AI review if Accepted
+    if (verdict === "Accepted") {
+      const review = await aiCodeReview(code);
+      return res.json({ verdict, review });
+    }
+
+    // ❌ If wrong or failed, return detailed info
+    return res.json({
       verdict,
-      aiFeedback,
-      submission,
-      failedTest,
-      testResults,
+      error,
+      output,
+      expectedOutput,
     });
-
   } catch (err) {
-    console.error("🔥 Internal Server Error:", err?.message || err.toString());
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("❌ Submission error:", err.message);
+    return res.status(500).json({ verdict: "Internal Error", error: err.message });
   }
 });
 
 module.exports = router;
+
 
