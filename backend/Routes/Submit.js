@@ -6,7 +6,7 @@ const Submission = require("../models/Submission");
 const Problem = require("../models/Problem");
 const { authenticateUser } = require("../middleware/verification"); // ✅ Auth middleware
 
-router.post("/submit", authenticateUser, async (req, res) => {
+router.post("/", authenticateUser, async (req, res) => {
   const { problemId, code, language } = req.body;
 
   if (!problemId || !code || !language) {
