@@ -1,13 +1,18 @@
 const express = require("express");
-const router = express.Router();
 const axios = require("axios");
-const { aiCodeReview } = require("./aiCodeReview"); // ✅ Local Gemini logic
+const router = express.Router();
+
 const Submission = require("../models/Submission");
 const Problem = require("../models/Problem");
+const { aiCodeReview } = require("./aiCodeReview");
 const { authenticateUser } = require("../middleware/verification");
 
-router.post("/", authenticateUser, async (req, res) => {
+router.post("/submit", authenticateUser, async (req, res) => {
   const { problemId, code, language } = req.body;
+
+  if (!problemId || !code || !language) {
+    return res.status(400).json({ error: "Missing required fields." });
+  }
 
   try {
     const problem = await Problem.findById(problemId);
@@ -15,23 +20,40 @@ router.post("/", authenticateUser, async (req, res) => {
       return res.status(404).json({ error: "Problem not found." });
     }
 
-    const testCases = problem.testCases;
-    const timeout = 2000; // ✅ 2 second timeout
+    const testCases = problem.testCases || [];
+    const compilerURL = process.env.VITE_COMPILER_URL || "http://localhost:8000/run";
 
-    const response = await axios.post(
-      process.env.VITE_COMPILER_URL || "http://localhost:8000/run",
-      {
+    let allPassed = true;
+    let failedCase = null;
+
+    for (let i = 0; i < testCases.length; i++) {
+      const { input, expectedOutput } = testCases[i];
+
+      const { data } = await axios.post(compilerURL, {
         code,
         language,
-        testCases,
-        timeout,
+        input,
+        timeout: 2000,
+      });
+
+      const actualOutput = (data.output || "").trim();
+      const expected = (expectedOutput || "").trim();
+
+      if (actualOutput !== expected) {
+        allPassed = false;
+        failedCase = {
+          input,
+          expectedOutput: expected,
+          actualOutput,
+          error: data.error || null,
+        };
+        break;
       }
-    );
+    }
 
-    const { verdict, error, output, expectedOutput } = response.data;
+    const verdict = allPassed ? "Accepted" : "Wrong Answer";
 
-    // ✅ Save submission in DB
-    await Submission.create({
+    const submission = await Submission.create({
       user: req.user._id,
       problem: problemId,
       code,
@@ -40,25 +62,20 @@ router.post("/", authenticateUser, async (req, res) => {
       difficulty: problem.difficulty,
     });
 
-    // ✅ Only run AI review if Accepted
     if (verdict === "Accepted") {
       const review = await aiCodeReview(code);
       return res.json({ verdict, review });
     }
 
-    // ❌ If wrong or failed, return detailed info
-    return res.json({
-      verdict,
-      error,
-      output,
-      expectedOutput,
-    });
+    return res.json({ verdict, failedCase });
+
   } catch (err) {
-    console.error("❌ Submission error:", err.message);
+    console.error("❌ Submission Error:", err.message);
     return res.status(500).json({ verdict: "Internal Error", error: err.message });
   }
 });
 
 module.exports = router;
+
 
 
