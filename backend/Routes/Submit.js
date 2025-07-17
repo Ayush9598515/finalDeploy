@@ -4,7 +4,7 @@ const axios = require("axios");
 const { aiCodeReview } = require("./aiCodeReview"); // ✅ Local Gemini logic
 const Submission = require("../models/Submission");
 const Problem = require("../models/Problem");
-const { authenticateUser } = require("../middleware/authenticate");
+const { authenticateUser } = require("../middleware/verification");
 
 router.post("/", authenticateUser, async (req, res) => {
   const { problemId, code, language } = req.body;
