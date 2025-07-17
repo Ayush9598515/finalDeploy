@@ -2,26 +2,30 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 
+// ✅ Environment variable for backend URL
+const AUTH_URL = import.meta.env.VITE_AUTH_URL;
+
 const Problemset = () => {
   const [problems, setProblems] = useState([]);
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState("");
-  const [loading, setLoading] = useState(true); // 🔁 Added
-
-  const AUTH_URL = "http://localhost:2000";
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProblems = async () => {
       try {
-        const { data } = await axios.get(`${AUTH_URL}/api/problems`);
-        console.log("📦 Problems from backend:", data); // 🟢 Debug log
-        setProblems(data);
+        const res = await axios.get(`${AUTH_URL}/api/problems`, {
+          withCredentials: true,
+        });
+        console.log("📦 Problems from backend:", res.data);
+        setProblems(res.data);
       } catch (err) {
         console.error("❌ Error fetching problems:", err);
       } finally {
-        setLoading(false); // 🟢 Stop loading
+        setLoading(false);
       }
     };
+
     fetchProblems();
   }, []);
 
@@ -58,9 +62,11 @@ const Problemset = () => {
         </select>
       </div>
 
-      {/* Loading */}
+      {/* Loading or Problems */}
       {loading ? (
-        <div className="text-center text-gray-500 dark:text-gray-400">Loading problems...</div>
+        <div className="text-center text-gray-500 dark:text-gray-400">
+          Loading problems...
+        </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700">
           <table className="min-w-full table-auto">
@@ -74,7 +80,10 @@ const Problemset = () => {
             <tbody>
               {filteredProblems.length > 0 ? (
                 filteredProblems.map((problem, index) => (
-                  <tr key={problem._id} className="border-t border-gray-300 dark:border-gray-700">
+                  <tr
+                    key={problem._id}
+                    className="border-t border-gray-300 dark:border-gray-700"
+                  >
                     <td className="px-4 py-2">{index + 1}</td>
                     <td className="px-4 py-2 text-blue-600 dark:text-blue-400 hover:underline">
                       <Link to={`/problems/${problem._id}`}>{problem.title}</Link>
@@ -110,3 +119,4 @@ const Problemset = () => {
 };
 
 export default Problemset;
+
