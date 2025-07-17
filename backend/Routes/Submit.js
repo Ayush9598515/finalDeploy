@@ -1,128 +1,113 @@
-const express = require('express');
+const express = require("express");
+const axios = require("axios");
+const isAuth = require("../middlewares/isAuth");
+const Problem = require("../models/Problem");
+const Submission = require("../models/Submission");
+
 const router = express.Router();
-const axios = require('axios');
-const Problem = require('../models/Problem');
-const Submission = require('../models/Submission');
-const isAuth = require('../middleware/verification');
-const { aiCodeReview } = require('./aiCodeReview');
 
-const COMPILER_URL = process.env.COMPILER_URL || 'http://localhost:8000';
+const COMPILER_URL = process.env.COMPILER_URL || "http://localhost:8000/run";
+const AI_REVIEW_URL = process.env.AI_REVIEW_URL || "http://localhost:8000/ai-review";
 
-router.post('/submit', isAuth, async (req, res) => {
-  const { code, language, problemId } = req.body;
+// Helper function to normalize output for better comparison
+const normalize = str => str.replace(/\s+/g, ' ').replace(/[\[\],]/g, '').trim();
 
-  if (!code || !language || !problemId) {
-    return res.status(400).json({
-      verdict: "Invalid Request",
-      error: "Missing fields",
-    });
-  }
-
+router.post("/", isAuth, async (req, res) => {
   try {
+    const { problemId, language, code } = req.body;
+
     const problem = await Problem.findById(problemId);
     if (!problem) {
-      return res.status(404).json({ verdict: "Problem Not Found" });
-    }
-
-    const testCases = problem.testCases || [];
-    if (testCases.length === 0) {
-      return res.status(400).json({ verdict: "No Test Cases Found" });
+      return res.status(404).json({ message: "Problem not found" });
     }
 
     let verdict = "Accepted";
-    let errorMessage = "";
+    const testResults = [];
     let failedTest = null;
-    let testResults = [];
 
-    for (let i = 0; i < testCases.length; i++) {
-      const { input, expectedOutput } = testCases[i];
+    for (const testCase of problem.testCases) {
+      const { input, expectedOutput } = testCase;
 
-      let result;
       try {
-        result = await axios.post(`${COMPILER_URL}/run`, {
+        const response = await axios.post(COMPILER_URL, {
           code,
           language,
           input,
         }, {
-          timeout: 2000, // 10 seconds timeout
+          timeout: 2000 // ✅ 2 seconds timeout
         });
+
+        const output = response.data.output;
+        const normalizedOutput = normalize(output);
+        const normalizedExpected = normalize(expectedOutput);
+
+        const passed = normalizedOutput === normalizedExpected;
+
+        testResults.push({
+          input,
+          expectedOutput,
+          output,
+          passed,
+        });
+
+        if (!passed && verdict === "Accepted") {
+          verdict = "Wrong Answer";
+          failedTest = {
+            input,
+            expectedOutput,
+            output,
+          };
+        }
+
       } catch (err) {
-        console.error("🔥 Compiler Error:", err.message);
-        console.error("🔥 Compiler Full Error:", err.response?.data || err.toString());
-        verdict = "Internal Error";
-        errorMessage = err.response?.data?.error || "Compiler server error";
-        break;
-      }
-
-      if (!result || !result.data) {
-        verdict = "Internal Error";
-        errorMessage = "Compiler returned no response";
-        break;
-      }
-
-      const output = result.data.output?.trim() || "";
-      const error = result.data.error;
-
-      const normalizedOutput = output.replace(/[\[\],]/g, '').trim();
-      const normalizedExpected = expectedOutput.replace(/[\[\],]/g, '').trim();
-
-      testResults.push({
-        input,
-        expectedOutput,
-        actualOutput: output,
-        error: error || "",
-        passed: !error && normalizedOutput === normalizedExpected,
-      });
-
-      if (error) {
-        verdict = "Compilation Error";
-        errorMessage = error;
-        failedTest = testCases[i];
-        break;
-      }
-
-      if (normalizedOutput !== normalizedExpected) {
-        verdict = "Wrong Answer";
-        errorMessage = `Test case ${i + 1} failed`;
-        failedTest = testCases[i];
-        break;
+        console.error("🔥 Compiler Error:", err?.response?.data || err?.message || err.toString());
+        verdict = "Error";
+        return res.status(500).json({
+          message: "Error running code",
+          error: err?.response?.data || err?.message || err.toString(),
+        });
       }
     }
 
-    let aiReview = "";
+    let aiFeedback = "";
     if (verdict === "Accepted") {
       try {
-        aiReview = await aiCodeReview(code);
+        const aiResponse = await axios.post(AI_REVIEW_URL, {
+          code,
+          language,
+          problemDescription: problem.description,
+        });
+        aiFeedback = aiResponse.data.feedback || "";
       } catch (err) {
-        console.error("⚠️ AI Review Error:", err.message);
-        aiReview = "⚠️ AI Review failed.";
+        console.error("🔥 AI Review Error:", err?.response?.data || err?.message || err.toString());
+        aiFeedback = "AI review unavailable due to error.";
       }
     }
 
-    await Submission.create({
+    const submission = await Submission.create({
       user: req.user.id,
       problem: problemId,
       code,
       language,
       verdict,
       difficulty: problem.difficulty,
+      testResults,     // ✅ Saved for history/debugging (optional)
+      failedTest,      // ✅ Shows failing case on frontend
     });
 
     return res.status(200).json({
       verdict,
-      testResults,
+      aiFeedback,
+      submission,
       failedTest,
-      aiReview,
-      error: errorMessage,
+      testResults,
     });
 
   } catch (err) {
-    console.error("❌ Submission Error:", err.message);
-    return res.status(500).json({
-      verdict: "Internal Error",
-      error: err.message,
-    });
+    console.error("🔥 Internal Server Error:", err?.message || err.toString());
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
 module.exports = router;
+
