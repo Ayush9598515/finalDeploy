@@ -1,6 +1,6 @@
 const express = require("express");
 const axios = require("axios");
-const isAuth = require("../middlewares/isAuth");
+const isAuth = require("../middlewares/verification");
 const Problem = require("../models/Problem");
 const Submission = require("../models/Submission");
 
