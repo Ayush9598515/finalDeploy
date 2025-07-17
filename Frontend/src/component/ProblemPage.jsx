@@ -88,39 +88,59 @@ const ProblemPage = () => {
   };
 
   const handleVerdictSubmit = async () => {
-    if (isLoading) return;
-    setIsLoading(true);
-    setOutput('');
-    setVerdict('');
-    setTestcaseFeedback('');
-    setAIFeedback('');
+  if (!code.trim()) {
+    toast.error("Write some code first!");
+    return;
+  }
 
-    try {
-      const res = await axios.post(SUBMIT_URL, {
-        code,
-        language,
-        problemId: id
-      }, {
-        withCredentials: true
-      });
+  setIsLoading(true);
+  setVerdict("⏳ Checking...");
+  setTestcaseFeedback("");
+  setAIFeedback("");
 
-      const { verdict, error, expected, actual, aiReview } = res.data;
-
-      setVerdict(verdict);
-      if (verdict === 'Wrong Answer') {
-        setTestcaseFeedback(`Expected: ${expected}\nYour Output: ${actual}`);
-      } else if (verdict === 'Accepted') {
-        setTestcaseFeedback("🎉 All test cases passed!");
-        if (aiReview) setAIFeedback(aiReview);
+  try {
+    const res = await axios.post(`${import.meta.env.VITE_SUBMIT_URL}`, {
+      code,
+      language,
+      problemId: problem._id,
+    }, {
+      headers: {
+        Authorization: localStorage.getItem("token"),
       }
-    } catch (err) {
-      setVerdict("Submission Failed");
-      setOutput("❌ Server error while submitting.");
-    } finally {
-      setIsLoading(false);
-      setTimeout(() => outputRef.current?.scrollIntoView({ behavior: 'smooth' }), 300);
+    });
+
+    const { verdict, failedCase, aiFeedback } = res.data;
+
+    if (verdict === "Accepted") {
+      setTestcaseFeedback("🎉 All test cases passed!");
+    } else if (verdict === "Wrong Answer" && failedCase) {
+      setTestcaseFeedback(`❌ Test Failed
+
+🔹 Input:
+${failedCase.input}
+
+🔹 Expected Output:
+${failedCase.expectedOutput}
+
+🔹 Your Output:
+${failedCase.actualOutput}`);
+    } else {
+      setTestcaseFeedback("❌ Submission failed. Try again.");
     }
-  };
+
+    if (aiFeedback) {
+      setAIFeedback(aiFeedback);
+    }
+
+    setVerdict(verdict);
+  } catch (err) {
+    console.error("❌ Error submitting code:", err);
+    toast.error("Error submitting code. Try again.");
+    setVerdict("❌ Internal Error");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   if (!problem) return <div className="p-4 text-center">⏳ Loading problem...</div>;
 
