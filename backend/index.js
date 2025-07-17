@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 2000;
 
 // 🛡️ Middleware
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: "https://www.namescheap.xyz/",
   credentials: true,
 }));
 app.use(cookieParser());
