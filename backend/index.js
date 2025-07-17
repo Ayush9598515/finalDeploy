@@ -7,7 +7,7 @@ const { DBConnection } = require("./database/db");
 const { aiCodeReview } = require('./Routes/aiCodeReview');
 
 const app = express();
-const PORT = process.env.PORT || 2000;
+
 
 // 🛡️ Middleware
 app.use(cors({
