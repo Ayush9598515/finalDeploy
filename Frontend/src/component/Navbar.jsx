@@ -1,27 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
+
 const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:2000";
 
 function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem("theme") === "dark";
-  });
+  const [userName, setUserName] = useState(() => localStorage.getItem("username") || "");
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
 
   const navigate = useNavigate();
   const location = useLocation();
+  const dropdownRef = useRef(null);
 
   // 🔁 Check auth on route change
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const res = await axios.get(`${AUTH_URL}/api/me`, {
-     withCredentials: true,
-    });
-        const nameFromRes = res.data.user.name?.split("@")[0] || res.data.user.email.split("@")[0];
+          withCredentials: true,
+        });
+
+        const nameFromRes =
+          res.data.user.name?.split("@")[0] || res.data.user.email.split("@")[0];
+
         setIsLoggedIn(true);
         setUserName(nameFromRes);
         localStorage.setItem("username", nameFromRes);
@@ -33,9 +36,10 @@ function Navbar() {
     };
 
     checkAuth();
+    setDropdownOpen(false); // Auto close dropdown on route change
   }, [location]);
 
-  // 🌗 Handle theme toggle
+  // 🌗 Handle dark mode toggle
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark");
@@ -46,19 +50,31 @@ function Navbar() {
     }
   }, [darkMode]);
 
+  // 🧠 Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownOpen]);
+
   // 🚪 Logout handler
   const handleLogout = async () => {
     try {
-      await axios.post(`${AUTH_URL}/api/logout`, {}, {
-     withCredentials: true,
-      });
-
+      await axios.post(`${AUTH_URL}/api/logout`, {}, { withCredentials: true });
       localStorage.removeItem("username");
       setIsLoggedIn(false);
       setUserName("");
-      setDropdownOpen(false);
       navigate("/login");
-      alert("You have been logged out.");
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -79,7 +95,6 @@ function Navbar() {
         <div className="hidden md:flex items-center space-x-6 text-sm font-medium">
           <Link to="/" className="hover:text-purple-400">Home</Link>
           <Link to="/dashboard" className="hover:text-purple-400">Dashboard</Link>
-          
           <Link to="/contest" className="hover:text-purple-400">Contest</Link>
         </div>
 
@@ -100,7 +115,7 @@ function Navbar() {
               Login
             </Link>
           ) : (
-            <div className="relative">
+            <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2 bg-gray-800 px-3 py-2 rounded-md text-sm hover:bg-gray-700"
