@@ -1,76 +1,63 @@
-// controllers/SubmitController.js
-
-const axios = require("axios");
 const Submission = require("../models/Submission");
 const Problem = require("../models/Problem");
-const { aiCodeReview } = require("../Routes/aiCodeReview");
+const { aiCodeReview } = require("../utils/aiReview");
+const axios = require("axios");
 
-const submitCode = async (req, res) => {
-  const { problemId, code, language } = req.body;
-
-  if (!problemId || !code || !language) {
-    return res.status(400).json({ error: "Missing required fields." });
-  }
-
+exports.handleSubmission = async (req, res) => {
   try {
+    const userId = req.user.id; // 👤 Extract user ID from JWT
+    const { problemId, language, code } = req.body;
+
     const problem = await Problem.findById(problemId);
-    if (!problem) {
-      return res.status(404).json({ error: "Problem not found." });
-    }
+    if (!problem) return res.status(404).json({ error: "Problem not found" });
 
-    const testCases = problem.testCases || [];
-    const compilerURL = process.env.VITE_COMPILER_URL || "http://localhost:8000/run";
-
+    const testCases = problem.testCases;
     let allPassed = true;
     let failedCase = null;
 
+    // 🔁 Run on all test cases
     for (let i = 0; i < testCases.length; i++) {
       const { input, expectedOutput } = testCases[i];
 
-      const { data } = await axios.post(compilerURL, {
+      const response = await axios.post(`${process.env.COMPILER_URL}`, {
         code,
         language,
         input,
-        timeout: 2000,
-      });
+      }, { timeout: 2000 }); // 🕒 2 second timeout
 
-      const actualOutput = (data.output || "").trim();
-      const expected = (expectedOutput || "").trim();
-
-      if (actualOutput !== expected) {
+      const actualOutput = response.data.output.trim();
+      if (actualOutput !== expectedOutput.trim()) {
         allPassed = false;
-        failedCase = {
-          input,
-          expectedOutput: expected,
-          actualOutput,
-          error: data.error || null,
-        };
+        failedCase = { input, expectedOutput, actualOutput };
         break;
       }
     }
 
     const verdict = allPassed ? "Accepted" : "Wrong Answer";
 
+    // 🤖 AI review only if JS/Python/C++/Java
+    const aiReview = await aiCodeReview(code);
+
+    // 💾 Save submission
     const submission = await Submission.create({
-      user: req.user._id,
+      user: userId,
       problem: problemId,
-      code,
       language,
+      code,
       verdict,
-      difficulty: problem.difficulty,
+      aiReview,
     });
 
-    if (verdict === "Accepted") {
-      const review = await aiCodeReview(code);
-      return res.json({ verdict, review });
-    }
-
-    return res.json({ verdict, failedCase });
+    // 📤 Send response
+    res.json({
+      success: true,
+      verdict,
+      failedCase: failedCase || null,
+      aiReview,
+    });
 
   } catch (err) {
     console.error("❌ Submission Error:", err.message);
-    return res.status(500).json({ verdict: "Internal Error", error: err.message });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
-module.exports = { submitCode };
