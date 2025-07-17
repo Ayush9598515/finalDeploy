@@ -26,13 +26,27 @@ const submissionSchema = new mongoose.Schema({
   },
   difficulty: {
     type: String,
-    enum: ["Easy", "Medium", "Hard"], // ✅ Add this for dashboard stats
+    enum: ["Easy", "Medium", "Hard"],
     required: true,
   },
   submittedAt: {
     type: Date,
     default: Date.now,
-  }
+  },
+
+  // 🆕 For showing wrong test case details
+  failedTestCase: {
+    input: { type: String },
+    expectedOutput: { type: String },
+    userOutput: { type: String },
+  },
+
+  // 🆕 For Compilation/Runtime error message
+  errorMessage: {
+    type: String,
+  },
+
 }, { timestamps: true });
 
 module.exports = mongoose.model("Submission", submissionSchema);
+
