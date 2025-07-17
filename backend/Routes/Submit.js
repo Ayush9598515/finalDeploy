@@ -4,7 +4,7 @@ const router = express.Router();
 
 const Submission = require("../models/Submission");
 const Problem = require("../models/Problem");
-const { authenticateUser } = require("../middleware/verification");
+const { authenticateUser } = require("../middleware/verification"); // ✅ Auth middleware
 
 router.post("/submit", authenticateUser, async (req, res) => {
   const { problemId, code, language } = req.body;
@@ -14,6 +14,7 @@ router.post("/submit", authenticateUser, async (req, res) => {
   }
 
   try {
+    // ✅ Get problem from DB
     const problem = await Problem.findById(problemId);
     if (!problem) {
       return res.status(404).json({ error: "Problem not found." });
@@ -26,6 +27,7 @@ router.post("/submit", authenticateUser, async (req, res) => {
     let allPassed = true;
     let failedCase = null;
 
+    // ✅ Run all test cases
     for (let i = 0; i < testCases.length; i++) {
       const { input, expectedOutput } = testCases[i];
 
@@ -51,8 +53,8 @@ router.post("/submit", authenticateUser, async (req, res) => {
       }
     }
 
+    // ✅ Save submission
     const verdict = allPassed ? "Accepted" : "Wrong Answer";
-
     const submission = await Submission.create({
       user: req.user._id,
       problem: problemId,
