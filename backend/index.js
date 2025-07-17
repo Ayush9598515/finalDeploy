@@ -15,6 +15,7 @@ origin: [
   "https://namescheap.xyz",
   "https://www.namescheap.xyz"
 ],
+  credentials: true,
 }));
 app.use(cookieParser());
 app.use(express.json());
