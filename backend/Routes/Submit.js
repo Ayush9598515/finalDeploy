@@ -53,7 +53,7 @@ router.post("/submit", authenticateUser, async (req, res) => {
 
     const verdict = allPassed ? "Accepted" : "Wrong Answer";
 
-    const submission = await Submission.create({
+    await Submission.create({
       user: req.user._id,
       problem: problemId,
       code,
@@ -76,6 +76,7 @@ router.post("/submit", authenticateUser, async (req, res) => {
 });
 
 module.exports = router;
+
 
 
 
