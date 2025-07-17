@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 
-// ✅ Environment variable for backend URL
+// ✅ Load backend URL from environment variable
 const AUTH_URL = import.meta.env.VITE_AUTH_URL;
 
 const Problemset = () => {
@@ -10,17 +10,24 @@ const Problemset = () => {
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchProblems = async () => {
       try {
+        if (!AUTH_URL) {
+          throw new Error("❌ AUTH_URL is not defined in .env file!");
+        }
+
         const res = await axios.get(`${AUTH_URL}/api/problems`, {
           withCredentials: true,
         });
-        console.log("📦 Problems from backend:", res.data);
+
+        console.log("📦 Problems fetched:", res.data);
         setProblems(res.data);
       } catch (err) {
         console.error("❌ Error fetching problems:", err);
+        setError("Failed to load problems. Please try again later.");
       } finally {
         setLoading(false);
       }
@@ -62,7 +69,12 @@ const Problemset = () => {
         </select>
       </div>
 
-      {/* Loading or Problems */}
+      {/* Error */}
+      {error && (
+        <div className="text-red-600 mb-4 text-sm font-medium">{error}</div>
+      )}
+
+      {/* Loading or Problems Table */}
       {loading ? (
         <div className="text-center text-gray-500 dark:text-gray-400">
           Loading problems...
@@ -86,7 +98,9 @@ const Problemset = () => {
                   >
                     <td className="px-4 py-2">{index + 1}</td>
                     <td className="px-4 py-2 text-blue-600 dark:text-blue-400 hover:underline">
-                      <Link to={`/problems/${problem._id}`}>{problem.title}</Link>
+                      <Link to={`/problems/${problem._id}`}>
+                        {problem.title}
+                      </Link>
                     </td>
                     <td className="px-4 py-2">
                       <span
@@ -105,7 +119,10 @@ const Problemset = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="3" className="text-center py-6 text-gray-500 dark:text-gray-400">
+                  <td
+                    colSpan="3"
+                    className="text-center py-6 text-gray-500 dark:text-gray-400"
+                  >
                     No problems found.
                   </td>
                 </tr>
@@ -119,4 +136,3 @@ const Problemset = () => {
 };
 
 export default Problemset;
-
