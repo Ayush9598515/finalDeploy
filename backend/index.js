@@ -48,7 +48,9 @@ app.post("/api/ai-review", async (req, res) => {
 
 
 // 🚀 Start Server
-app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
-  open(`http://localhost:${PORT}`);
+const PORT = process.env.PORT || 2000;
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
+
