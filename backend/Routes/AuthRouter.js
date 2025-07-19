@@ -2,7 +2,7 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const router = express.Router();
-const User = require("../models/user.js");
+const User = require("../models/user");
 
 // ✅ REGISTER Route
 router.post("/register", async (req, res) => {
@@ -17,7 +17,15 @@ router.post("/register", async (req, res) => {
       subscription,
     } = req.body;
 
-    if (!name || !email || !phonenumber || !dateofbirth || !password || !gender || !subscription) {
+    if (
+      !name ||
+      !email ||
+      !phonenumber ||
+      !dateofbirth ||
+      !password ||
+      !gender ||
+      !subscription
+    ) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
@@ -39,6 +47,7 @@ router.post("/register", async (req, res) => {
     });
 
     await newUser.save();
+
     res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
     console.error("❌ Registration error:", error);
@@ -46,7 +55,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// ✅ LOGIN Route (HTTP-only, cross-origin cookie setup)
+// ✅ LOGIN Route
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -71,11 +80,11 @@ router.post("/login", async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    // ✅ Set cross-site secure cookie
+    // ✅ Set secure cookie
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,           // ✅ must be true for HTTPS
-      sameSite: "None",       // ✅ required for cross-origin cookie
+      secure: true,       // For HTTPS
+      sameSite: "None",   // To allow cross-origin requests
       maxAge: 60 * 60 * 1000, // 1 hour
     });
 
@@ -89,7 +98,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ✅ AUTH CHECK
+// ✅ AUTH CHECK Route
 router.get("/me", (req, res) => {
   const token = req.cookies.token;
 
@@ -105,14 +114,15 @@ router.get("/me", (req, res) => {
   }
 });
 
-// ✅ LOGOUT
+// ✅ LOGOUT Route
 router.post("/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
-    secure: true,       // ✅ match the login config
+    secure: true,
     sameSite: "None",
   });
-  return res.status(200).json({ message: "Logged out successfully" });
+  res.status(200).json({ message: "Logged out successfully" });
 });
 
 module.exports = router;
+
