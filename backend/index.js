@@ -2,58 +2,53 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const open = require("open").default;
 const { DBConnection } = require("./database/db");
 const { aiCodeReview } = require('./Routes/aiCodeReview');
 
 const app = express();
 
-
-// 🛡️ Middleware
+// ✅ Fix 1: Make sure to allow both local dev and prod frontend in CORS
 app.use(cors({
-origin: [
- 
-  "https://www.namescheap.xyz"
-],
-  credentials: true,
+  origin: [
+    "http://localhost:5173",         // ✅ for development
+    "https://www.namescheap.xyz"     // ✅ your live frontend
+  ],
+  credentials: true, // ✅ critical for cookies
 }));
+
+// ✅ Fix 2: Middleware order is fine
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 🔌 Connect to MongoDB
+// 🔌 MongoDB connection
 DBConnection();
 
-// 🛣️ Combined Routers (auth, problems, submissions, dashboard, user)
+// ✅ All main routes under /api
 const apiRoutes = require("./Routes/index");
 app.use("/api", apiRoutes);
 
-// 🏁 Default route
+// ✅ Optional AI Review route
+app.post("/api/ai-review", async (req, res) => {
+  const { code } = req.body;
+  if (!code) {
+    return res.status(400).json({ success: false, error: "Code is required!" });
+  }
+  try {
+    const review = await aiCodeReview(code);
+    res.json({ review });
+  } catch (error) {
+    res.status(500).json({ error: "Error in AI review: " + error.message });
+  }
+});
+
+// ✅ Default route
 app.get("/", (req, res) => {
   res.send("🚀 AY-Code Backend is running!");
-  
-});
-app.post("/api/ai-review", async (req, res) => {
-    const { code } = req.body;
-    if (code === undefined) {
-        return res.status(404).json({ success: false, error: "Empty code!" });
-    }
-    try {
-        const review = await aiCodeReview(code);
-        res.json({ "review": review });
-    } catch (error) {
-        res.status(500).json({ error: "Error in AI review, error: " + error.message });
-    }
 });
 
-
-
-
-
-// 🚀 Start Server
+// 🚀 Start server
 const PORT = process.env.PORT || 2000;
-
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
-
