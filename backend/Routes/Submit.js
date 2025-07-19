@@ -4,7 +4,7 @@ const router = express.Router();
 
 const Submission = require("../models/Submission");
 const Problem = require("../models/Problem");
-const { authenticateUser } = require("../middleware/verification"); // ✅ Auth middleware
+const verifyUser  = require("../middleware/verification"); // ✅ Auth middleware
 
 router.post("/", authenticateUser, async (req, res) => {
   const { problemId, code, language } = req.body;
