@@ -2,7 +2,8 @@ const jwt = require("jsonwebtoken");
 
 // ✅ Middleware to verify token and attach user to request
 const verifyUser = (req, res, next) => {
-  const token = req.cookies.token;
+const token = req.headers.authorization;
+
 
   // 🔒 Token missing
   if (!token) {
