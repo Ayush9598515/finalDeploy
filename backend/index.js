@@ -7,16 +7,16 @@ const { aiCodeReview } = require('./Routes/aiCodeReview');
 
 const app = express();
 
-// ✅ Fix 1: Make sure to allow both local dev and prod frontend in CORS
+// ✅ Updated CORS: include localhost + custom domain + Vercel frontend
 app.use(cors({
   origin: [
-    "http://localhost:5173",         // ✅ for development
-    "https://www.namescheap.xyz"     // ✅ your live frontend
+    "http://localhost:5173", // Dev
+    "https://www.namescheap.xyz", // Custom domain
+    "https://ay-code-3mxbre6fe-ayush-pandeys-projects-cf754a30.vercel.app" // Vercel frontend
   ],
-  credentials: true, // ✅ critical for cookies
+  credentials: true // Required for cookies
 }));
 
-// ✅ Fix 2: Middleware order is fine
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
