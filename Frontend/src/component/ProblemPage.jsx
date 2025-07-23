@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 import Editor from "@monaco-editor/react";
-import { toast } from "react-hot-toast";
+import  toast  from "react-hot-toast";
 
 const ProblemPage = () => {
   const { id } = useParams();
