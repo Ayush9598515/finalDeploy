@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
+
 const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:2000";
+
 const SignIn = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -17,18 +19,16 @@ const SignIn = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-   
-    try {
-      const res = await axios.post(
-       `${AUTH_URL}/api/login`,
-        formData,
-        
-        {
-          withCredentials: true, // ✅ Important to receive cookie
-        }
-      );
 
-      localStorage.setItem("username", res.data.username); // ✅ Save username to show later
+    try {
+      const res = await axios.post(`${AUTH_URL}/api/login`, formData, {
+        withCredentials: true, // ✅ Important for httpOnly cookies (optional)
+      });
+
+      // ✅ Store username and token
+      localStorage.setItem("username", res.data.username);
+      localStorage.setItem("authToken", res.data.token); // ✅ Token stored
+
       alert("Login Successful ✅");
       navigate("/");
     } catch (err) {
@@ -56,7 +56,9 @@ const SignIn = () => {
               src="https://flowbite.com/docs/images/logo.svg"
               alt="AyCode Logo"
             />
-            <h2 className="mt-4 text-2xl font-bold tracking-tight">Sign in to your account</h2>
+            <h2 className="mt-4 text-2xl font-bold tracking-tight">
+              Sign in to your account
+            </h2>
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -118,3 +120,4 @@ const SignIn = () => {
 };
 
 export default SignIn;
+
