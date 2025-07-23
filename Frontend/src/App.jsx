@@ -1,5 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Provider } from "react-redux";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 import store from "./redux/store";
 
 import Navbar from "./component/Navbar";
@@ -7,7 +10,6 @@ import Footer from "./component/Footer";
 import Home from "./component/Home";
 import SignIn from "./component/SignIn";
 import Contest from "./component/Contest";
-
 import SignUp from "./component/Signup";
 import Table from "./component/Table";
 import PrivateRoute from "./component/PrivateRoute";
@@ -33,13 +35,14 @@ function App() {
               }
             />
             <Route path="/practice" element={<ProblemSet />} />
-             <Route path="/problems/:id" element={<ProblemPage />} /> {/* ✅ Fix here */}
-              <Route path="/contest" element={<Contest />} />
+            <Route path="/problems/:id" element={<ProblemPage />} /> {/* ✅ Fix here */}
+            <Route path="/contest" element={<Contest />} />
           </Routes>
         </div>
         <Footer />
-       
 
+        {/* ✅ ToastContainer must be inside Provider/Router */}
+        <ToastContainer position="top-center" autoClose={3000} />
       </Router>
     </Provider>
   );
