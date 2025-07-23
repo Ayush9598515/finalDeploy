@@ -5,15 +5,10 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // ✅ This tells axios to send cookies with every request
 });
 
-// Optional: Add auth token if exists
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// ❌ The interceptor that was here has been removed.
+// The browser will now handle sending the cookie automatically.
 
 export default api;
